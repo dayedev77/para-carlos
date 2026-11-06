@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Tengo algo que decirte 💌</title>
+
+    <!-- Librerías -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/typed.js@2.1.0/dist/typed.umd.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+
+    <style>
+        * { box-sizing: border-box; }
+        html, body {
+            margin: 0; min-height: 100%; overflow-x: hidden;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: radial-gradient(circle at 50% 30%, #3a0d2e 0%, #14040f 70%);
+            color: #fff;
+        }
+        #corazones { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+        .flotante { position: absolute; bottom: -50px; user-select: none; }
+
+        .tarjeta {
+            position: relative; z-index: 1;
+            width: min(92vw, 520px);
+            margin: 4vh auto 0;
+            padding: 24px 24px 32px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 150, 200, 0.25);
+            border-radius: 24px;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 0 60px rgba(255, 60, 140, 0.25);
+            text-align: center;
+            opacity: 0;
+        }
+        h1 { margin: 0 0 8px; font-size: 1.1rem; font-weight: 500; color: #ffb3d1; letter-spacing: .5px; }
+        .grafico { position: relative; width: 100%; aspect-ratio: 1 / 0.9; }
+        #mensaje { min-height: 3.2em; margin-top: 12px; font-size: 1.5rem; font-weight: 600; }
+        .typed-cursor { color: #ff4f9a; }
+
+        .botones {
+            position: relative; height: 60px; margin-top: 18px;
+            display: flex; justify-content: center; gap: 20px;
+            opacity: 0; visibility: hidden;
+        }
+        button {
+            font-size: 1.1rem; padding: 12px 32px; border: none; border-radius: 999px;
+            cursor: pointer; font-weight: 600; transition: transform .15s;
+        }
+        #si { background: linear-gradient(135deg, #ff4f9a, #ff7a59); color: #fff; box-shadow: 0 6px 20px rgba(255, 79, 154, .5); }
+        #si:hover { transform: scale(1.08); }
+        #no { background: rgba(255,255,255,.15); color: #fff; position: relative; }
+
+        #final { display: none; margin-top: 16px; font-size: 1.3rem; color: #ffd1e3; }
+        .titulo-final { font-size: 1.5rem; font-weight: 700; color: #fff; }
+        .razones { list-style: none; padding: 0; margin: 14px 0; font-size: 1.05rem; line-height: 1.9; }
+        .firma { font-style: italic; color: #ffb3d1; font-size: 1rem; }
+        .estela { position: fixed; pointer-events: none; z-index: 5; font-size: 18px; transform: translate(-50%, -50%); }
+    </style>
+</head>
+<body>
+    <div id="corazones"></div>
+
+    <div class="tarjeta" id="tarjeta">
+        <h1>📈 Gráfico de lo que siento por ti, Carlos 💘</h1>
+        <div class="grafico"><canvas id="grafico"></canvas></div>
+        <div id="mensaje"><span id="texto"></span></div>
+
+        <div class="botones" id="botones">
+            <button id="si">Sí 💖</button>
+            <button id="no">No</button>
+        </div>
+        <div id="final"></div>
+    </div>
+
+    <script>
+        // ✏️ Cambia aquí el nombre de esa persona especial
+        const NOMBRE = 'Carlos';
+
+        /* ---------- 1) GSAP: corazones flotando de fondo ---------- */
+        const fondo = document.getElementById('corazones');
+        const EMOJIS = ['❤️', '💖', '💕', '💗', '💘', '🌸'];
+
+        function soltarCorazon() {
+            const el = document.createElement('div');
+            el.className = 'flotante';
+            el.textContent = EMOJIS[Math.floor(Math.random() * EMOJIS.length)];
+            el.style.left = Math.random() * 100 + 'vw';
+            el.style.fontSize = 14 + Math.random() * 26 + 'px';
+            fondo.appendChild(el);
+
+            gsap.to(el, {
+                y: -(innerHeight + 100),
+                x: (Math.random() - 0.5) * 200,
+                rotation: (Math.random() - 0.5) * 90,
+                opacity: 0,
+                duration: 6 + Math.random() * 6,
+                ease: 'sine.out',
+                onComplete: () => el.remove()
+            });
+        }
+        setInterval(soltarCorazon, 250);
+
+        // Estela de corazones que sigue al mouse o al dedo
+        let ultimaEstela = 0;
+        function estela(x, y) {
+            const ahora = Date.now();
+            if (ahora - ultimaEstela < 60) return;
+            ultimaEstela = ahora;
+            const el = document.createElement('div');
+            el.className = 'estela';
+            el.textContent = EMOJIS[Math.floor(Math.random() * 5)];
+            el.style.left = x + 'px';
+            el.style.top = y + 'px';
+            document.body.appendChild(el);
+            gsap.to(el, { y: -40, scale: 0.3, opacity: 0, duration: 1, onComplete: () => el.remove() });
+        }
+        addEventListener('mousemove', e => estela(e.clientX, e.clientY));
+        addEventListener('touchmove', e => estela(e.touches[0].clientX, e.touches[0].clientY), { passive: true });
+
+        gsap.to('#tarjeta', { opacity: 1, y: 0, duration: 1.2, ease: 'power3.out', startAt: { y: 40 } });
+
+        /* ---------- 2) Chart.js: el gráfico es un corazón ---------- */
+        // Ecuación paramétrica del corazón
+        const puntosCorazon = [];
+        for (let i = 0; i <= 200; i++) {
+            const t = (i / 200) * Math.PI * 2;
+            puntosCorazon.push({
+                x: 16 * Math.sin(t) ** 3,
+                y: 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t)
+            });
+        }
+
+        const ctx = document.getElementById('grafico').getContext('2d');
+        const degradado = ctx.createLinearGradient(0, 0, 0, 400);
+        degradado.addColorStop(0, 'rgba(255, 79, 154, 0.75)');
+        degradado.addColorStop(1, 'rgba(255, 122, 89, 0.35)');
+
+        const grafico = new Chart(ctx, {
+            type: 'scatter',
+            data: {
+                datasets: [{
+                    label: 'Cuánto me gustas (∞)',
+                    data: [],
+                    showLine: true,
+                    borderColor: '#ff4f9a',
+                    borderWidth: 3,
+                    pointRadius: 0,
+                    tension: 0.3,
+                    fill: false,
+                    backgroundColor: degradado
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                plugins: {
+                    legend: { labels: { color: '#ffd1e3', boxWidth: 12 } },
+                    tooltip: { enabled: false }
+                },
+                scales: {
+                    x: {
+                        min: -20, max: 20,
+                        title: { display: true, text: 'Tiempo pensando en ti', color: '#ffb3d1' },
+                        ticks: { display: false },
+                        grid: { color: 'rgba(255,255,255,0.06)' }
+                    },
+                    y: {
+                        min: -20, max: 15,
+                        title: { display: true, text: 'Nivel de cariño', color: '#ffb3d1' },
+                        ticks: { display: false },
+                        grid: { color: 'rgba(255,255,255,0.06)' }
+                    }
+                }
+            }
+        });
+
+        // Dibuja el corazón punto por punto
+        let indice = 0;
+        const dibujo = setInterval(() => {
+            grafico.data.datasets[0].data.push(puntosCorazon[indice++]);
+            grafico.update('none');
+            if (indice >= puntosCorazon.length) {
+                clearInterval(dibujo);
+                grafico.data.datasets[0].fill = 'shape';   // rellena el corazón
+                grafico.update();
+                latir();
+                escribirMensaje();
+            }
+        }, 12);
+
+        // GSAP: el corazón del gráfico late
+        function latir() {
+            gsap.to('.grafico', {
+                scale: 1.06, duration: 0.35, repeat: -1, yoyo: true,
+                ease: 'power1.inOut', repeatDelay: 0.25
+            });
+        }
+
+        /* ---------- 3) Typed.js: el mensaje se escribe solo ---------- */
+        function escribirMensaje() {
+            new Typed('#texto', {
+                strings: [
+                    `Hola, ${NOMBRE} 💌`,
+                    'Hice este gráfico solo para ti...',
+                    'Porque cada vez que te veo, mi corazón hace esto 💓',
+                    'Me encanta tu sonrisa 😊',
+                    'Me encanta cómo me haces sentir 🥰',
+                    'Pienso en ti más de lo que imaginas 💭',
+                    'Y los datos no mienten:',
+                    `¡Me gustas muchísimo, ${NOMBRE}! ❤️<br>¿Yo te gusto también?`
+                ],
+                typeSpeed: 50,
+                backSpeed: 30,
+                backDelay: 1200,
+                onComplete: mostrarBotones
+            });
+        }
+
+        function mostrarBotones() {
+            gsap.to('#botones', { autoAlpha: 1, y: 0, duration: 0.8, startAt: { y: 20 }, ease: 'back.out(2)' });
+        }
+
+        /* ---------- El botón "No" se escapa 😏 ---------- */
+        const btnNo = document.getElementById('no');
+        let escapes = 0;
+        const frases = ['¿Seguro? 🥺', 'Piénsalo bien 💭', 'No vale 😢', 'Me romperías el corazón 💔', 'Dale al Sí 💖', 'Imposible 😜'];
+
+        function escapar(e) {
+            e.preventDefault();
+            const caja = document.getElementById('tarjeta').getBoundingClientRect();
+            gsap.to(btnNo, {
+                x: (Math.random() - 0.5) * (caja.width - 120),
+                y: (Math.random() - 0.5) * 140,
+                duration: 0.3,
+                ease: 'power2.out'
+            });
+            btnNo.textContent = frases[escapes++ % frases.length];
+            // El "Sí" crece cada vez que intentan decir que no
+            gsap.to('#si', { scale: 1 + Math.min(escapes * 0.12, 0.8), duration: 0.3 });
+        }
+        btnNo.addEventListener('mouseenter', escapar);
+        btnNo.addEventListener('touchstart', escapar, { passive: false });
+        btnNo.addEventListener('click', escapar);
+
+        /* ---------- 4) canvas-confetti: lluvia de corazones al decir que sí ---------- */
+        document.getElementById('si').addEventListener('click', () => {
+            const formas = confetti.shapeFromText
+                ? [confetti.shapeFromText({ text: '❤️', scalar: 2 }), confetti.shapeFromText({ text: '💖', scalar: 2 })]
+                : undefined;
+
+            const fin = Date.now() + 3000;
+            (function lanzar() {
+                confetti({ particleCount: 6, angle: 60, spread: 70, origin: { x: 0 }, shapes: formas, scalar: 2 });
+                confetti({ particleCount: 6, angle: 120, spread: 70, origin: { x: 1 }, shapes: formas, scalar: 2 });
+                if (Date.now() < fin) requestAnimationFrame(lanzar);
+            })();
+            confetti({ particleCount: 150, spread: 120, origin: { y: 0.6 }, colors: ['#ff4f9a', '#ff7a59', '#ffd1e3', '#ffffff'] });
+
+            gsap.to('#botones', { autoAlpha: 0, duration: 0.4 });
+            const final = document.getElementById('final');
+            final.style.display = 'block';
+            final.innerHTML = `
+                <div class="titulo-final">¡Sabía que dirías que sí, ${NOMBRE}! 💞</div>
+                <ul class="razones">
+                    <li>💖 Eres lo más bonito de mi día</li>
+                    <li>🌙 Eres mi último pensamiento antes de dormir</li>
+                    <li>☀️ Y el primero al despertar</li>
+                    <li>🌹 Contigo todo es mejor</li>
+                </ul>
+                <div class="firma">Con todo mi cariño, para ti ❤️</div>`;
+            gsap.from(final.querySelector('.titulo-final'), { scale: 0.5, opacity: 0, duration: 0.8, ease: 'elastic.out(1, 0.5)' });
+            gsap.from(final.querySelectorAll('.razones li'), { x: -40, opacity: 0, duration: 0.6, stagger: 0.5, delay: 0.6 });
+            gsap.from(final.querySelector('.firma'), { opacity: 0, y: 10, duration: 1, delay: 3 });
+
+            // El fondo se vuelve más rosado
+            gsap.to('body', { background: 'radial-gradient(circle at 50% 30%, #6b1347 0%, #2a0619 70%)', duration: 2 });
+            // Confeti de corazones cada cierto tiempo, para siempre
+            setInterval(() => confetti({ particleCount: 25, spread: 100, startVelocity: 25, origin: { x: Math.random(), y: 0 }, shapes: formas, scalar: 1.8, gravity: 0.6 }), 2500);
+
+            // Más corazones de fondo para celebrar
+            for (let i = 0; i < 30; i++) setTimeout(soltarCorazon, i * 60);
+        });
+    </script>
+</body>
+</html>
