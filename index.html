@@ -65,19 +65,28 @@
             background: radial-gradient(circle at 50% 40%, #4a1038 0%, #14040f 75%);
             cursor: pointer; text-align: center; padding: 20px;
         }
-        #portada .sobre { font-size: 90px; animation: latido 1.2s infinite; }
+        #portada { justify-content: flex-start; padding-top: 8vh; }
+        #portada .sobre { font-size: 70px; animation: latido 1.2s infinite; }
         #portada p { margin: 0; font-size: 1.4rem; color: #ffd1e3; }
-        #portada small { color: #ff9cc5; opacity: .8; }
+        #portada small { color: #ff9cc5; opacity: .9; font-size: 1rem; }
+        #sinMusica { margin-top: auto; margin-bottom: 4vh; background: none; color: #ff9cc5; font-size: .85rem; text-decoration: underline; opacity: .7; }
         @keyframes latido { 0%,100% { transform: scale(1); } 50% { transform: scale(1.15); } }
 
-        /* Mini reproductor */
+        /* Reproductor: grande en la portada (en iPhone hay que tocar el video directamente),
+           y luego se encoge a la esquina */
         .musica {
-            position: fixed; right: 12px; bottom: 12px; z-index: 6;
+            position: fixed; z-index: 21;
+            left: 50%; top: 50%; transform: translate(-50%, -30%);
             background: rgba(20, 4, 15, .8); border: 1px solid rgba(255, 150, 200, .3);
             border-radius: 14px; padding: 6px; display: flex; flex-direction: column; gap: 4px;
-            font-size: .75rem; color: #ffb3d1; opacity: 0;
+            font-size: .75rem; color: #ffb3d1;
+            box-shadow: 0 0 40px rgba(255, 60, 140, .5);
         }
-        .musica .video { width: 160px; height: 90px; border-radius: 10px; overflow: hidden; }
+        .musica.esquina { left: auto; top: auto; right: 12px; bottom: 12px; transform: none; z-index: 6; box-shadow: none; }
+        .musica .video { width: min(85vw, 360px); aspect-ratio: 16 / 9; height: auto; border-radius: 10px; overflow: hidden; }
+        .musica.esquina .video { width: 160px; }
+        .musica .fila button { display: none; }
+        .musica.esquina .fila button { display: inline-block; }
         .musica .video iframe { width: 100%; height: 100%; }
         .musica .fila { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 0 2px; }
         #btnMusica { font-size: .8rem; padding: 4px 10px; background: rgba(255,79,154,.3); color: #fff; }
@@ -89,7 +98,8 @@
     <div id="portada">
         <div class="sobre">💌</div>
         <p>Carlos, tengo algo para ti...</p>
-        <small>Toca para abrir 🎵</small>
+        <small>Sube el volumen y toca ▶️ en el video para abrir 🎵</small>
+        <button id="sinMusica">Abrir sin música</button>
     </div>
 
     <div class="musica" id="musica">
@@ -163,7 +173,7 @@
         /* ---------- Música: YouTube IFrame API (video oficial) ---------- */
         const VIDEO_ID = 'lY5V4hSLWY8';   // Bruno Mars - Risk It All [Official Music Video]
         const INICIO = 49;                // segundo donde empieza el coro ("Say you want the moon"); ajústalo si hace falta
-        let player = null, listo = false, quiereSonar = false, sonando = false;
+        let player = null, listo = false, sonando = false;
 
         const api = document.createElement('script');
         api.src = 'https://www.youtube.com/iframe_api';
@@ -172,41 +182,52 @@
         window.onYouTubeIframeAPIReady = () => {
             player = new YT.Player('reproductor', {
                 videoId: VIDEO_ID,
-                playerVars: { playsinline: 1, controls: 0, rel: 0, loop: 1, playlist: VIDEO_ID, start: INICIO },
+                // "start" hace que arranque en el coro sin necesidad de seekTo (que en iPhone lo pausa)
+                playerVars: { playsinline: 1, controls: 1, rel: 0, loop: 1, playlist: VIDEO_ID, start: INICIO },
                 events: {
-                    onReady: () => { listo = true; if (quiereSonar) sonar(); },
+                    onReady: () => { listo = true; player.setVolume(80); },
                     onStateChange: e => {
                         sonando = e.data === YT.PlayerState.PLAYING;
                         document.getElementById('btnMusica').textContent = sonando ? '⏸' : '▶️';
+                        if (sonando) iniciar();   // la música empezó → abre la sorpresa
                     }
                 }
             });
         };
-
-        function sonar() {
-            quiereSonar = true;
-            if (!listo) return;
-            player.setVolume(70);
-            player.seekTo(INICIO, true);   // arranca directo en el coro
-            player.playVideo();
-        }
 
         document.getElementById('btnMusica').addEventListener('click', () => {
             if (!listo) return;
             sonando ? player.pauseVideo() : player.playVideo();
         });
 
-        /* ---------- Portada: al tocar empieza todo ---------- */
+        /* ---------- Portada ---------- */
+        // En computadora/Android, tocar cualquier parte de la portada también intenta reproducir.
+        // En iPhone solo funciona tocando el video, por eso el video está ahí, grande.
+        document.getElementById('portada').addEventListener('click', e => {
+            if (e.target.id === 'sinMusica') return;
+            if (listo) player.playVideo();
+        });
+        document.getElementById('sinMusica').addEventListener('click', iniciar);
+
         let iniciado = false;
-        document.getElementById('portada').addEventListener('click', () => {
+        function iniciar() {
             if (iniciado) return;
             iniciado = true;
-            sonar();
-            gsap.to('#portada', { autoAlpha: 0, duration: 0.8, onComplete: () => document.getElementById('portada').remove() });
-            gsap.to('#musica', { opacity: 1, duration: 1, delay: 0.8 });
+            const portada = document.getElementById('portada');
+            gsap.to(portada, { autoAlpha: 0, duration: 0.8, onComplete: () => portada.remove() });
+
+            // El reproductor se va a la esquina
+            const musica = document.getElementById('musica');
+            gsap.to(musica, {
+                opacity: 0, duration: 0.4, onComplete: () => {
+                    musica.classList.add('esquina');
+                    gsap.to(musica, { opacity: 1, duration: 0.8 });
+                }
+            });
+
             gsap.to('#tarjeta', { opacity: 1, y: 0, duration: 1.2, delay: 0.3, ease: 'power3.out', startAt: { y: 40 } });
             setTimeout(empezarDibujo, 900);
-        });
+        }
 
         /* ---------- 2) Chart.js: el gráfico es un corazón ---------- */
         // Ecuación paramétrica del corazón
