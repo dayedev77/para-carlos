@@ -57,10 +57,48 @@
         .titulo-final { font-size: 1.5rem; font-weight: 700; color: #fff; }
         .razones { list-style: none; padding: 0; margin: 14px 0; font-size: 1.05rem; line-height: 1.9; }
         .firma { font-style: italic; color: #ffb3d1; font-size: 1rem; }
+        /* Portada: hace falta un toque para que el navegador deje sonar la música */
+        #portada {
+            position: fixed; inset: 0; z-index: 20;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+            background: radial-gradient(circle at 50% 40%, #4a1038 0%, #14040f 75%);
+            cursor: pointer; text-align: center; padding: 20px;
+        }
+        #portada .sobre { font-size: 90px; animation: latido 1.2s infinite; }
+        #portada p { margin: 0; font-size: 1.4rem; color: #ffd1e3; }
+        #portada small { color: #ff9cc5; opacity: .8; }
+        @keyframes latido { 0%,100% { transform: scale(1); } 50% { transform: scale(1.15); } }
+
+        /* Mini reproductor */
+        .musica {
+            position: fixed; right: 12px; bottom: 12px; z-index: 6;
+            background: rgba(20, 4, 15, .8); border: 1px solid rgba(255, 150, 200, .3);
+            border-radius: 14px; padding: 6px; display: flex; flex-direction: column; gap: 4px;
+            font-size: .75rem; color: #ffb3d1; opacity: 0;
+        }
+        .musica .video { width: 160px; height: 90px; border-radius: 10px; overflow: hidden; }
+        .musica .video iframe { width: 100%; height: 100%; }
+        .musica .fila { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 0 2px; }
+        #btnMusica { font-size: .8rem; padding: 4px 10px; background: rgba(255,79,154,.3); color: #fff; }
+
         .estela { position: fixed; pointer-events: none; z-index: 5; font-size: 18px; transform: translate(-50%, -50%); }
     </style>
 </head>
 <body>
+    <div id="portada">
+        <div class="sobre">💌</div>
+        <p>Carlos, tengo algo para ti...</p>
+        <small>Toca para abrir 🎵</small>
+    </div>
+
+    <div class="musica" id="musica">
+        <div class="video"><div id="reproductor"></div></div>
+        <div class="fila">
+            <span>🎵 Risk It All · Bruno Mars</span>
+            <button id="btnMusica">⏸</button>
+        </div>
+    </div>
+
     <div id="corazones"></div>
 
     <div class="tarjeta" id="tarjeta">
@@ -120,7 +158,51 @@
         addEventListener('mousemove', e => estela(e.clientX, e.clientY));
         addEventListener('touchmove', e => estela(e.touches[0].clientX, e.touches[0].clientY), { passive: true });
 
-        gsap.to('#tarjeta', { opacity: 1, y: 0, duration: 1.2, ease: 'power3.out', startAt: { y: 40 } });
+        /* ---------- Música: YouTube IFrame API (video oficial) ---------- */
+        const VIDEO_ID = 'lY5V4hSLWY8';   // Bruno Mars - Risk It All [Official Music Video]
+        let player = null, listo = false, quiereSonar = false, sonando = false;
+
+        const api = document.createElement('script');
+        api.src = 'https://www.youtube.com/iframe_api';
+        document.head.appendChild(api);
+
+        window.onYouTubeIframeAPIReady = () => {
+            player = new YT.Player('reproductor', {
+                videoId: VIDEO_ID,
+                playerVars: { playsinline: 1, controls: 0, rel: 0, loop: 1, playlist: VIDEO_ID },
+                events: {
+                    onReady: () => { listo = true; if (quiereSonar) sonar(); },
+                    onStateChange: e => {
+                        sonando = e.data === YT.PlayerState.PLAYING;
+                        document.getElementById('btnMusica').textContent = sonando ? '⏸' : '▶️';
+                    }
+                }
+            });
+        };
+
+        function sonar() {
+            quiereSonar = true;
+            if (!listo) return;
+            player.setVolume(70);
+            player.playVideo();
+        }
+
+        document.getElementById('btnMusica').addEventListener('click', () => {
+            if (!listo) return;
+            sonando ? player.pauseVideo() : player.playVideo();
+        });
+
+        /* ---------- Portada: al tocar empieza todo ---------- */
+        let iniciado = false;
+        document.getElementById('portada').addEventListener('click', () => {
+            if (iniciado) return;
+            iniciado = true;
+            sonar();
+            gsap.to('#portada', { autoAlpha: 0, duration: 0.8, onComplete: () => document.getElementById('portada').remove() });
+            gsap.to('#musica', { opacity: 1, duration: 1, delay: 0.8 });
+            gsap.to('#tarjeta', { opacity: 1, y: 0, duration: 1.2, delay: 0.3, ease: 'power3.out', startAt: { y: 40 } });
+            setTimeout(empezarDibujo, 900);
+        });
 
         /* ---------- 2) Chart.js: el gráfico es un corazón ---------- */
         // Ecuación paramétrica del corazón
@@ -179,8 +261,8 @@
         });
 
         // Dibuja el corazón punto por punto
-        let indice = 0;
-        const dibujo = setInterval(() => {
+        let indice = 0, dibujo;
+        function empezarDibujo() { dibujo = setInterval(() => {
             grafico.data.datasets[0].data.push(puntosCorazon[indice++]);
             grafico.update('none');
             if (indice >= puntosCorazon.length) {
@@ -190,7 +272,7 @@
                 latir();
                 escribirMensaje();
             }
-        }, 12);
+        }, 12); }
 
         // GSAP: el corazón del gráfico late
         function latir() {
