@@ -36,7 +36,8 @@
             opacity: 0;
         }
         h1 { margin: 0 0 8px; font-size: 1.1rem; font-weight: 500; color: #ffb3d1; letter-spacing: .5px; }
-        .grafico { position: relative; width: 100%; aspect-ratio: 1 / 0.9; }
+        .grafico { position: relative; z-index: 3; width: 100%; aspect-ratio: 1 / 0.9; cursor: pointer; }
+        .pista { font-size: .8rem; color: #ff9cc5; opacity: .75; margin: 2px 0 0; }
         #mensaje { min-height: 3.2em; margin-top: 12px; font-size: 1.5rem; font-weight: 600; }
         .typed-cursor { color: #ff4f9a; }
 
@@ -103,7 +104,8 @@
 
     <div class="tarjeta" id="tarjeta">
         <h1>📈 Gráfico de lo que siento por ti, Carlos 💘</h1>
-        <div class="grafico"><canvas id="grafico"></canvas></div>
+        <div class="grafico" id="cajaGrafico"><canvas id="grafico"></canvas></div>
+        <p class="pista">👆 Toca el corazón</p>
         <div id="mensaje"><span id="texto"></span></div>
 
         <div class="botones" id="botones">
@@ -160,6 +162,7 @@
 
         /* ---------- Música: YouTube IFrame API (video oficial) ---------- */
         const VIDEO_ID = 'lY5V4hSLWY8';   // Bruno Mars - Risk It All [Official Music Video]
+        const INICIO = 49;                // segundo donde empieza el coro ("Say you want the moon"); ajústalo si hace falta
         let player = null, listo = false, quiereSonar = false, sonando = false;
 
         const api = document.createElement('script');
@@ -169,7 +172,7 @@
         window.onYouTubeIframeAPIReady = () => {
             player = new YT.Player('reproductor', {
                 videoId: VIDEO_ID,
-                playerVars: { playsinline: 1, controls: 0, rel: 0, loop: 1, playlist: VIDEO_ID },
+                playerVars: { playsinline: 1, controls: 0, rel: 0, loop: 1, playlist: VIDEO_ID, start: INICIO },
                 events: {
                     onReady: () => { listo = true; if (quiereSonar) sonar(); },
                     onStateChange: e => {
@@ -184,6 +187,7 @@
             quiereSonar = true;
             if (!listo) return;
             player.setVolume(70);
+            player.seekTo(INICIO, true);   // arranca directo en el coro
             player.playVideo();
         }
 
@@ -238,6 +242,7 @@
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                devicePixelRatio: 3,   // se ve nítido aunque se agrande
                 animation: false,
                 plugins: {
                     legend: { labels: { color: '#ffd1e3', boxWidth: 12 } },
@@ -276,11 +281,41 @@
 
         // GSAP: el corazón del gráfico late
         function latir() {
-            gsap.to('.grafico', {
+            gsap.to('#grafico', {
                 scale: 1.06, duration: 0.35, repeat: -1, yoyo: true,
                 ease: 'power1.inOut', repeatDelay: 0.25
             });
         }
+
+        /* ---------- Al tocar el corazón se hace enorme ---------- */
+        const caja = document.getElementById('cajaGrafico');
+        const resto = '#tarjeta h1, .pista, #mensaje, #botones, #final';
+        let grande = false;
+
+        caja.addEventListener('click', () => {
+            grande = !grande;
+            if (grande) {
+                gsap.set(caja, { x: 0, y: 0, scale: 1 });
+                const r = caja.getBoundingClientRect();
+                const escala = Math.min(innerWidth * 0.95 / r.width, innerHeight * 0.9 / r.height, 3);
+                gsap.to(caja, {
+                    x: innerWidth / 2 - (r.left + r.width / 2),
+                    y: innerHeight / 2 - (r.top + r.height / 2),
+                    scale: escala, duration: 0.9, ease: 'back.out(1.6)'
+                });
+                gsap.to(resto, { opacity: 0.1, duration: 0.5 });
+                gsap.to('#tarjeta', { boxShadow: '0 0 160px rgba(255, 60, 140, 0.7)', duration: 0.9 });
+
+                // Explosión de corazones desde el centro
+                const formas = confetti.shapeFromText ? [confetti.shapeFromText({ text: '❤️', scalar: 2 })] : undefined;
+                confetti({ particleCount: 80, spread: 360, startVelocity: 35, origin: { x: 0.5, y: 0.5 }, shapes: formas, scalar: 2 });
+                for (let i = 0; i < 20; i++) setTimeout(soltarCorazon, i * 50);
+            } else {
+                gsap.to(caja, { x: 0, y: 0, scale: 1, duration: 0.7, ease: 'power3.inOut' });
+                gsap.to(resto, { opacity: 1, duration: 0.5 });
+                gsap.to('#tarjeta', { boxShadow: '0 0 60px rgba(255, 60, 140, 0.25)', duration: 0.7 });
+            }
+        });
 
         /* ---------- 3) Typed.js: el mensaje se escribe solo ---------- */
         function escribirMensaje() {
